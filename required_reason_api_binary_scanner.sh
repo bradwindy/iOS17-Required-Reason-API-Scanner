@@ -64,6 +64,7 @@ function search_binaries_with_filename {
 cd "$1"
 
 declare -a binaries
+declare -a duped_final_apis
 
 # Adds the .app binary
 search_binaries_with_directory app
@@ -77,14 +78,20 @@ echo '---'
 
 for binary in "${binaries[@]}"; do
     if ! [ -f "$binary" ]; then
-        echo "binary '$binary' doesn't exist"
-        exit 1
+        continue
     fi
     used_symbols=()
     for symbol in "${symbols[@]}"; do
         if nm "$binary" 2>/dev/null | xcrun swift-demangle | grep -E "$symbol$" >/dev/null; then
             used_symbols+=($symbol)
+            duped_final_apis+=($symbol)
         fi
     done
-    echo "Used symbols in binary $binary: $(join_by ', ' ${used_symbols[@]})"
+    
+    if (( ${#used_symbols[@]} )); then
+        echo "Used symbols in binary $binary: $(join_by ', ' ${used_symbols[@]})"
+    fi
 done
+
+uniques=($(for v in "${duped_final_apis[@]}"; do echo "$v";done| sort| uniq| xargs))
+echo "List of APIs used across all targets and frameworks: ${uniques[@]}"
